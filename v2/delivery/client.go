@@ -451,3 +451,13 @@ func (c *Client) NewChangePositionModeService() *ChangePositionModeService {
 func (c *Client) NewGetPositionModeService() *GetPositionModeService {
 	return &GetPositionModeService{c: c}
 }
+
+// NewCreateBatchOrdersService init create batch orders
+func (c *Client) NewCreateBatchOrdersService() *CreateBatchOrdersService {
+	return &CreateBatchOrdersService{c: c}
+}
+
+// NewCancelMultiplesOrdersService init get position mode service
+func (c *Client) NewCancelMultiplesOrdersService() *CancelMultiplesOrdersService {
+	return &CancelMultiplesOrdersService{c: c}
+}
