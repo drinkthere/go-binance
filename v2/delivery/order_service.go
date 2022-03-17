@@ -3,7 +3,9 @@ package delivery
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 // CreateOrderService create order
@@ -620,4 +622,166 @@ type LiquidationOrder struct {
 	Type             OrderType       `json:"type"`
 	Side             SideType        `json:"side"`
 	Time             int64           `json:"time"`
+}
+
+
+type CreateBatchOrdersService struct {
+	c      *Client
+	orders []*CreateOrderService
+}
+
+type CreateBatchOrdersResponse struct {
+	Orders []*Order
+}
+
+func (s *CreateBatchOrdersService) OrderList(orders []*CreateOrderService) *CreateBatchOrdersService {
+	s.orders = orders
+	return s
+}
+
+func (s *CreateBatchOrdersService) Do(ctx context.Context, opts ...RequestOption) (res *CreateBatchOrdersResponse, err error) {
+	r := &request{
+		method:   http.MethodPost,
+		endpoint: "/dapi/v1/batchOrders",
+		secType:  secTypeSigned,
+	}
+
+	orders := []params{}
+	for _, order := range s.orders {
+		m := params{
+			"symbol":           order.symbol,
+			"side":             order.side,
+			"type":             order.orderType,
+			"quantity":         order.quantity,
+			"newOrderRespType": order.newOrderRespType,
+		}
+
+		if order.positionSide != nil {
+			m["positionSide"] = *order.positionSide
+		}
+		if order.timeInForce != nil {
+			m["timeInForce"] = *order.timeInForce
+		}
+		if order.reduceOnly != nil {
+			m["reduceOnly"] = *order.reduceOnly
+		}
+		if order.price != nil {
+			m["price"] = *order.price
+		}
+		if order.newClientOrderID != nil {
+			m["newClientOrderId"] = *order.newClientOrderID
+		}
+		if order.stopPrice != nil {
+			m["stopPrice"] = *order.stopPrice
+		}
+		if order.workingType != nil {
+			m["workingType"] = *order.workingType
+		}
+		if order.priceProtect != nil {
+			m["priceProtect"] = *order.priceProtect
+		}
+		if order.activationPrice != nil {
+			m["activationPrice"] = *order.activationPrice
+		}
+		if order.callbackRate != nil {
+			m["callbackRate"] = *order.callbackRate
+		}
+		if order.closePosition != nil {
+			m["closePosition"] = *order.closePosition
+		}
+		orders = append(orders, m)
+	}
+	b, err := json.Marshal(orders)
+	if err != nil {
+		return &CreateBatchOrdersResponse{}, err
+	}
+	m := params{
+		"batchOrders": string(b),
+	}
+
+	r.setFormParams(m)
+
+	data, err := s.c.callAPI(ctx, r, opts...)
+
+	if err != nil {
+		return &CreateBatchOrdersResponse{}, err
+	}
+
+	rawMessages := make([]*json.RawMessage, 0)
+
+	err = json.Unmarshal(data, &rawMessages)
+
+	if err != nil {
+		return &CreateBatchOrdersResponse{}, err
+	}
+
+	batchCreateOrdersResponse := new(CreateBatchOrdersResponse)
+
+	for _, j := range rawMessages {
+		o := new(Order)
+		if err := json.Unmarshal(*j, o); err != nil {
+			return &CreateBatchOrdersResponse{}, err
+		}
+
+		if o.ClientOrderID != "" {
+			batchCreateOrdersResponse.Orders = append(batchCreateOrdersResponse.Orders, o)
+			continue
+		}
+
+	}
+	return batchCreateOrdersResponse, nil
+}
+
+// CancelMultiplesOrdersService cancel a list of orders
+type CancelMultiplesOrdersService struct {
+	c                     *Client
+	symbol                string
+	orderIDList           []int64
+	origClientOrderIDList []string
+}
+
+// Symbol set symbol
+func (s *CancelMultiplesOrdersService) Symbol(symbol string) *CancelMultiplesOrdersService {
+	s.symbol = symbol
+	return s
+}
+
+// OrderID set orderID
+func (s *CancelMultiplesOrdersService) OrderIDList(orderIDList []int64) *CancelMultiplesOrdersService {
+	s.orderIDList = orderIDList
+	return s
+}
+
+// OrigClientOrderID set origClientOrderID
+func (s *CancelMultiplesOrdersService) OrigClientOrderIDList(origClientOrderIDList []string) *CancelMultiplesOrdersService {
+	s.origClientOrderIDList = origClientOrderIDList
+	return s
+}
+
+// Do send request
+func (s *CancelMultiplesOrdersService) Do(ctx context.Context, opts ...RequestOption) (res []*CancelOrderResponse, err error) {
+	r := &request{
+		method:   http.MethodDelete,
+		endpoint: "/dapi/v1/batchOrders",
+		secType:  secTypeSigned,
+	}
+	r.setFormParam("symbol", s.symbol)
+	if s.orderIDList != nil {
+		// convert a slice of integers to a string e.g. [1 2 3] => "[1,2,3]"
+		orderIDListString := strings.Join(strings.Fields(fmt.Sprint(s.orderIDList)), ",")
+		r.setFormParam("orderIdList", orderIDListString)
+	}
+	if s.origClientOrderIDList != nil {
+		r.setFormParam("origClientOrderIdList", s.origClientOrderIDList)
+	}
+	data, err := s.c.callAPI(ctx, r, opts...)
+	if err != nil {
+		return nil, err
+	}
+	res = make([]*CancelOrderResponse, 0)
+	err = json.Unmarshal(data, &res)
+	if err != nil {
+		return []*CancelOrderResponse{}, err
+	}
+	return res, nil
 }
