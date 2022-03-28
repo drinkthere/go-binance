@@ -65,7 +65,7 @@ type UserDataEventReasonType string
 
 // Endpoints
 const (
-	baseApiMainUrl    = "https://dapi.binance.com"
+	baseApiMainUrl    = "https://dapi8.binance.com"
 	baseApiTestnetUrl = "https://testnet.binancefuture.com"
 )
 

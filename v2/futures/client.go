@@ -71,7 +71,7 @@ type ForceOrderCloseType string
 
 // Endpoints
 const (
-	baseApiMainUrl    = "https://fapi.binance.com"
+	baseApiMainUrl    = "https://api8.binance.com"
 	baseApiTestnetUrl = "https://testnet.binancefuture.com"
 )
 
