@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 )
 
@@ -17,6 +16,7 @@ type ListDepositsService struct {
 	endTime   *int64
 	offset    *int
 	limit     *int
+	txId      *string
 }
 
 // Coin sets the coin parameter.
@@ -57,6 +57,11 @@ func (s *ListDepositsService) Limit(limit int) *ListDepositsService {
 	return s
 }
 
+func (s *ListDepositsService) TxID(id string) *ListDepositsService {
+	s.txId = &id
+	return s
+}
+
 // Do sends the request.
 func (s *ListDepositsService) Do(ctx context.Context) (res []*Deposit, err error) {
 	r := &request{
@@ -82,6 +87,9 @@ func (s *ListDepositsService) Do(ctx context.Context) (res []*Deposit, err error
 	if s.limit != nil {
 		r.setParam("limit", *s.limit)
 	}
+	if s.txId != nil {
+		r.setParam("txId", *s.txId)
+	}
 
 	data, err := s.c.callAPI(ctx, r)
 	if err != nil {
@@ -106,7 +114,7 @@ type Deposit struct {
 	TxID          string `json:"txId"`
 	InsertTime    int64  `json:"insertTime"`
 	TransferType  int64  `json:"transferType"`
-	UnlockConfirm string `json:"unlockConfirm"`
+	UnlockConfirm int64  `json:"unlockConfirm"`
 	ConfirmTimes  string `json:"confirmTimes"`
 }
 

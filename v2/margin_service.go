@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -65,10 +64,11 @@ type TransactionResponse struct {
 
 // MarginLoanService apply for a loan
 type MarginLoanService struct {
-	c              *Client
-	asset          string
-	amount         string
-	isolatedSymbol string
+	c          *Client
+	asset      string
+	amount     string
+	isIsolated bool
+	symbol     *string
 }
 
 // Asset set asset being transferred, e.g., BTC
@@ -83,9 +83,15 @@ func (s *MarginLoanService) Amount(amount string) *MarginLoanService {
 	return s
 }
 
-// IsolatedSymbol set IsolatedSymbol
-func (s *MarginLoanService) IsolatedSymbol(isolatedSymbol string) *MarginLoanService {
-	s.isolatedSymbol = isolatedSymbol
+// IsIsolated is for isolated margin or not, "TRUE", "FALSE"，default "FALSE"
+func (s *MarginLoanService) IsIsolated(isIsolated bool) *MarginLoanService {
+	s.isIsolated = isIsolated
+	return s
+}
+
+// Symbol set isolated symbol
+func (s *MarginLoanService) Symbol(symbol string) *MarginLoanService {
+	s.symbol = &symbol
 	return s
 }
 
@@ -101,9 +107,13 @@ func (s *MarginLoanService) Do(ctx context.Context, opts ...RequestOption) (res 
 		"amount": s.amount,
 	}
 	r.setFormParams(m)
-	if s.isolatedSymbol != "" {
-		r.setParam("isolatedSymbol", s.isolatedSymbol)
+	if s.isIsolated {
+		r.setParam("isIsolated", "TRUE")
 	}
+	if s.symbol != nil {
+		r.setParam("symbol", *s.symbol)
+	}
+
 	res = new(TransactionResponse)
 	data, err := s.c.callAPI(ctx, r, opts...)
 	if err != nil {
@@ -118,10 +128,11 @@ func (s *MarginLoanService) Do(ctx context.Context, opts ...RequestOption) (res 
 
 // MarginRepayService repay loan for margin account
 type MarginRepayService struct {
-	c              *Client
-	asset          string
-	amount         string
-	isolatedSymbol string
+	c          *Client
+	asset      string
+	amount     string
+	isIsolated bool
+	symbol     *string
 }
 
 // Asset set asset being transferred, e.g., BTC
@@ -136,9 +147,15 @@ func (s *MarginRepayService) Amount(amount string) *MarginRepayService {
 	return s
 }
 
-// IsolatedSymbol set IsolatedSymbol
-func (s *MarginRepayService) IsolatedSymbol(isolatedSymbol string) *MarginRepayService {
-	s.isolatedSymbol = isolatedSymbol
+// IsIsolated is for isolated margin or not, "TRUE", "FALSE"，default "FALSE"
+func (s *MarginRepayService) IsIsolated(isIsolated bool) *MarginRepayService {
+	s.isIsolated = isIsolated
+	return s
+}
+
+// Symbol set isolated symbol
+func (s *MarginRepayService) Symbol(symbol string) *MarginRepayService {
+	s.symbol = &symbol
 	return s
 }
 
@@ -154,9 +171,13 @@ func (s *MarginRepayService) Do(ctx context.Context, opts ...RequestOption) (res
 		"amount": s.amount,
 	}
 	r.setFormParams(m)
-	if s.isolatedSymbol != "" {
-		r.setParam("isolatedSymbol", s.isolatedSymbol)
+	if s.isIsolated {
+		r.setParam("isIsolated", "TRUE")
 	}
+	if s.symbol != nil {
+		r.setParam("symbol", *s.symbol)
+	}
+
 	res = new(TransactionResponse)
 	data, err := s.c.callAPI(ctx, r, opts...)
 	if err != nil {
@@ -1010,4 +1031,38 @@ func (s *GetAllMarginAssetsService) Do(ctx context.Context, opts ...RequestOptio
 		return []*MarginAsset{}, err
 	}
 	return res, nil
+}
+
+// GetIsolatedMarginAllPairsService get isolated margin pair info
+type GetIsolatedMarginAllPairsService struct {
+	c *Client
+}
+
+// Do send request
+func (s *GetIsolatedMarginAllPairsService) Do(ctx context.Context, opts ...RequestOption) (res []*IsolatedMarginAllPair, err error) {
+	r := &request{
+		method:   http.MethodGet,
+		endpoint: "/sapi/v1/margin/isolated/allPairs",
+		secType:  secTypeAPIKey,
+	}
+	data, err := s.c.callAPI(ctx, r, opts...)
+	if err != nil {
+		return []*IsolatedMarginAllPair{}, err
+	}
+	res = make([]*IsolatedMarginAllPair, 0)
+	err = json.Unmarshal(data, &res)
+	if err != nil {
+		return []*IsolatedMarginAllPair{}, err
+	}
+	return res, nil
+}
+
+// IsolatedMarginAllPair define isolated margin pair info
+type IsolatedMarginAllPair struct {
+	Symbol        string `json:"symbol"`
+	Base          string `json:"base"`
+	Quote         string `json:"quote"`
+	IsMarginTrade bool   `json:"isMarginTrade"`
+	IsBuyAllowed  bool   `json:"isBuyAllowed"`
+	IsSellAllowed bool   `json:"isSellAllowed"`
 }

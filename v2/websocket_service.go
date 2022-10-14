@@ -1,10 +1,11 @@
 package binance
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
+
+	stdjson "encoding/json"
 )
 
 // Endpoints
@@ -115,7 +116,7 @@ func WsCombinedPartialDepthServe(symbolLevels map[string]string, handler WsParti
 		symbol := strings.Split(stream, "@")[0]
 		event.Symbol = strings.ToUpper(symbol)
 		data := j.Get("data").MustMap()
-		event.LastUpdateID, _ = data["lastUpdateId"].(json.Number).Int64()
+		event.LastUpdateID, _ = data["lastUpdateId"].(stdjson.Number).Int64()
 		bidsLen := len(data["bids"].([]interface{}))
 		event.Bids = make([]Bid, bidsLen)
 		for i := 0; i < bidsLen; i++ {
@@ -236,9 +237,9 @@ func wsCombinedDepthServe(endpoint string, handler WsDepthHandler, errHandler Er
 		symbol := strings.Split(stream, "@")[0]
 		event.Symbol = strings.ToUpper(symbol)
 		data := j.Get("data").MustMap()
-		event.Time, _ = data["E"].(json.Number).Int64()
-		event.LastUpdateID, _ = data["u"].(json.Number).Int64()
-		event.FirstUpdateID, _ = data["U"].(json.Number).Int64()
+		event.Time, _ = data["E"].(stdjson.Number).Int64()
+		event.LastUpdateID, _ = data["u"].(stdjson.Number).Int64()
+		event.FirstUpdateID, _ = data["U"].(stdjson.Number).Int64()
 		bidsLen := len(data["b"].([]interface{}))
 		event.Bids = make([]Bid, bidsLen)
 		for i := 0; i < bidsLen; i++ {
@@ -417,6 +418,7 @@ type WsAggTradeEvent struct {
 
 // WsTradeHandler handle websocket trade event
 type WsTradeHandler func(event *WsTradeEvent)
+type WsCombinedTradeHandler func(event *WsCombinedTradeEvent)
 
 // WsTradeServe serve websocket handler with a symbol
 func WsTradeServe(symbol string, handler WsTradeHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
@@ -424,6 +426,25 @@ func WsTradeServe(symbol string, handler WsTradeHandler, errHandler ErrHandler) 
 	cfg := newWsConfig(endpoint)
 	wsHandler := func(message []byte) {
 		event := new(WsTradeEvent)
+		err := json.Unmarshal(message, event)
+		if err != nil {
+			errHandler(err)
+			return
+		}
+		handler(event)
+	}
+	return wsServe(cfg, wsHandler, errHandler)
+}
+
+func WsCombinedTradeServe(symbols []string, handler WsCombinedTradeHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+	endpoint := getCombinedEndpoint()
+	for _, s := range symbols {
+		endpoint += fmt.Sprintf("%s@trade/", strings.ToLower(s))
+	}
+	endpoint = endpoint[:len(endpoint)-1]
+	cfg := newWsConfig(endpoint)
+	wsHandler := func(message []byte) {
+		event := new(WsCombinedTradeEvent)
 		err := json.Unmarshal(message, event)
 		if err != nil {
 			errHandler(err)
@@ -447,6 +468,11 @@ type WsTradeEvent struct {
 	TradeTime     int64  `json:"T"`
 	IsBuyerMaker  bool   `json:"m"`
 	Placeholder   bool   `json:"M"` // add this field to avoid case insensitive unmarshaling
+}
+
+type WsCombinedTradeEvent struct {
+	Stream string       `json:"stream"`
+	Data   WsTradeEvent `json:"data"`
 }
 
 // WsUserDataEvent define user data event
@@ -727,6 +753,11 @@ type WsBookTickerEvent struct {
 	BestAskQty   string `json:"A"`
 }
 
+type WsCombinedBookTickerEvent struct {
+	Data   *WsBookTickerEvent `json:"data"`
+	Stream string             `json:"stream"`
+}
+
 // WsBookTickerHandler handle websocket that pushes updates to the best bid or ask price or quantity in real-time for a specified symbol.
 type WsBookTickerHandler func(event *WsBookTickerEvent)
 
@@ -742,6 +773,26 @@ func WsBookTickerServe(symbol string, handler WsBookTickerHandler, errHandler Er
 			return
 		}
 		handler(event)
+	}
+	return wsServe(cfg, wsHandler, errHandler)
+}
+
+// WsCombinedBookTickerServe is similar to WsBookTickerServe, but it is for multiple symbols
+func WsCombinedBookTickerServe(symbols []string, handler WsBookTickerHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+	endpoint := baseCombinedMainURL
+	for _, s := range symbols {
+		endpoint += fmt.Sprintf("%s@bookTicker", strings.ToLower(s)) + "/"
+	}
+	endpoint = endpoint[:len(endpoint)-1]
+	cfg := newWsConfig(endpoint)
+	wsHandler := func(message []byte) {
+		event := new(WsCombinedBookTickerEvent)
+		err := json.Unmarshal(message, event)
+		if err != nil {
+			errHandler(err)
+			return
+		}
+		handler(event.Data)
 	}
 	return wsServe(cfg, wsHandler, errHandler)
 }

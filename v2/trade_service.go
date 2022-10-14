@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 )
 
@@ -143,13 +142,14 @@ func (s *HistoricalTradesService) Do(ctx context.Context, opts ...RequestOption)
 
 // Trade define trade info
 type Trade struct {
-	ID           int64  `json:"id"`
-	Price        string `json:"price"`
-	Quantity     string `json:"qty"`
-	Time         int64  `json:"time"`
-	IsBuyerMaker bool   `json:"isBuyerMaker"`
-	IsBestMatch  bool   `json:"isBestMatch"`
-	IsIsolated   bool   `json:"isIsolated"`
+	ID            int64  `json:"id"`
+	Price         string `json:"price"`
+	Quantity      string `json:"qty"`
+	QuoteQuantity string `json:"quoteQty"`
+	Time          int64  `json:"time"`
+	IsBuyerMaker  bool   `json:"isBuyerMaker"`
+	IsBestMatch   bool   `json:"isBestMatch"`
+	IsIsolated    bool   `json:"isIsolated"`
 }
 
 // TradeV3 define v3 trade info

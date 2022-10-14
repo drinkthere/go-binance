@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -210,6 +211,28 @@ func NewClient(apiKey, secretKey string) *Client {
 	}
 }
 
+// NewProxiedClient passing a proxy url
+func NewProxiedClient(apiKey, secretKey, proxyUrl string) *Client {
+	proxy, err := url.Parse(proxyUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tr := &http.Transport{
+		Proxy:           http.ProxyURL(proxy),
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &Client{
+		APIKey:    apiKey,
+		SecretKey: secretKey,
+		BaseURL:   getApiEndpoint(),
+		UserAgent: "Binance/golang",
+		HTTPClient: &http.Client{
+			Transport: tr,
+		},
+		Logger: log.New(os.Stderr, "Binance-golang ", log.LstdFlags),
+	}
+}
+
 type doFunc func(req *http.Request) (*http.Response, error)
 
 // Client define API client
@@ -371,6 +394,16 @@ func (c *Client) NewKlinesService() *KlinesService {
 	return &KlinesService{c: c}
 }
 
+// NewIndexPriceKlinesService init index price klines service
+func (c *Client) NewIndexPriceKlinesService() *IndexPriceKlinesService {
+	return &IndexPriceKlinesService{c: c}
+}
+
+// NewMarkPriceKlinesService init markPriceKlines service
+func (c *Client) NewMarkPriceKlinesService() *MarkPriceKlinesService {
+	return &MarkPriceKlinesService{c: c}
+}
+
 // NewListPriceChangeStatsService init list prices change stats service
 func (c *Client) NewListPriceChangeStatsService() *ListPriceChangeStatsService {
 	return &ListPriceChangeStatsService{c: c}
@@ -391,7 +424,7 @@ func (c *Client) NewCreateOrderService() *CreateOrderService {
 	return &CreateOrderService{c: c}
 }
 
-// NewCreateBatchOrderService init creating batch order service
+// NewCreateBatchOrdersService init creating batch order service
 func (c *Client) NewCreateBatchOrdersService() *CreateBatchOrdersService {
 	return &CreateBatchOrdersService{c: c}
 }
@@ -414,6 +447,11 @@ func (c *Client) NewCancelAllOpenOrdersService() *CancelAllOpenOrdersService {
 // NewCancelMultipleOrdersService init cancel multiple orders service
 func (c *Client) NewCancelMultipleOrdersService() *CancelMultiplesOrdersService {
 	return &CancelMultiplesOrdersService{c: c}
+}
+
+// NewGetOpenOrderService init get open order service
+func (c *Client) NewGetOpenOrderService() *GetOpenOrderService {
+	return &GetOpenOrderService{c: c}
 }
 
 // NewListOpenOrdersService init list open orders service
@@ -534,4 +572,24 @@ func (c *Client) NewGetPositionModeService() *GetPositionModeService {
 // NewGetRebateNewUserService init get rebate_newuser service
 func (c *Client) NewGetRebateNewUserService() *GetRebateNewUserService {
 	return &GetRebateNewUserService{c: c}
+}
+
+// NewCommissionRateService returns commission rate
+func (c *Client) NewCommissionRateService() *CommissionRateService {
+	return &CommissionRateService{c: c}
+}
+
+// NewGetOpenInterestService init open interest service
+func (c *Client) NewGetOpenInterestService() *GetOpenInterestService {
+	return &GetOpenInterestService{c: c}
+}
+
+// NewOpenInterestStatisticsService init open interest statistics service
+func (c *Client) NewOpenInterestStatisticsService() *OpenInterestStatisticsService {
+	return &OpenInterestStatisticsService{c: c}
+}
+
+// NewLongShortRatioService init open interest statistics service
+func (c *Client) NewLongShortRatioService() *LongShortRatioService {
+	return &LongShortRatioService{c: c}
 }
