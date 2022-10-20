@@ -461,3 +461,8 @@ func (c *Client) NewCreateBatchOrdersService() *CreateBatchOrdersService {
 func (c *Client) NewCancelMultiplesOrdersService() *CancelMultiplesOrdersService {
 	return &CancelMultiplesOrdersService{c: c}
 }
+
+// NewCancelMultiplesOrdersService init get position mode service
+func (c *Client) NewDepthService() *DepthService {
+	return &DepthService{c: c}
+}
